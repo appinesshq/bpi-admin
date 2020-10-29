@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' show Client, HttpHeaders, Request;
-// import '../models/session.dart';
-// import '../repositories/repositories.dart';
+import 'package:http/http.dart' show Client, Request;
+import '../models/session.dart';
+import '../repositories/repositories.dart';
 
-class API {
+class API implements AuthRepository {
   // implements AuthRepository, UserRepository {
   String url;
   int version;
@@ -60,20 +60,18 @@ class API {
     return data;
   }
 
-  Future<DateTime> authenticate(String login, String password,
+  Future<Session> authenticate(String login, String password,
       {bool withUser: false}) async {
     final Map<String, dynamic> data = await _request('users/token/$kid',
         basic: true, login: login, password: password);
     _token = data['token'];
 
-    // if (withUser) {
-    //   final user = await getUser('me');
-    //   return Session.fromJson(data, user: user);
-    // }
+    if (withUser) {
+      final user = await getUser('me');
+      return Session.fromJson(data, user: user);
+    }
 
-    //return Session.fromJson(data);
-    return DateTime.fromMillisecondsSinceEpoch(
-        1000 * (data['expires_at'] as int));
+    return Session.fromJson(data);
   }
 
   void logout() {
@@ -124,10 +122,10 @@ class API {
   //   return users;
   // }
 
-  // Future<User> getUser(String q) async {
-  //   final data = await _request('users/$q', method: 'get');
-  //   return User.fromJson(data);
-  // }
+  Future<User> getUser(String q) async {
+    final data = await _request('users/$q', method: 'get');
+    return User.fromJson(data);
+  }
 
   API(
       {this.url = 'http://localhost:3000',

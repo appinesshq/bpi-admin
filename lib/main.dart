@@ -1,4 +1,4 @@
-import 'package:bpi_admin/src/repositories/bpi_api.dart';
+import 'package:bpi_admin/src/repositories/api.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'src/widgets/widgets.dart' show AuthSwitcher, Login, App;

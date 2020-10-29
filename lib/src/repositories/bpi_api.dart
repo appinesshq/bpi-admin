@@ -1,101 +1,137 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:async';
-
-import 'package:http/http.dart' as http;
-
-enum Method { GET, POST, PUT, DELETE }
+import 'dart:convert';
+import 'package:http/http.dart' show Client, HttpHeaders, Request;
+// import '../models/session.dart';
+// import '../repositories/repositories.dart';
 
 class API {
-  final String _url;
-  final String _kid;
+  // implements AuthRepository, UserRepository {
+  String url;
+  int version;
+  String kid;
+  bool debug = false;
+  Client client;
 
-  http.Client client;
-  String _authToken;
-  Timer _t;
+  String _token;
 
-  API(
-      {String url = 'http://localhost:3000',
-      String kid = '54bb2165-71e1-41a6-af3e-7da4a0e1e2c1'})
-      : this._url = url,
-        this._kid = kid;
+  Future<dynamic> _request(
+    String endpoint, {
+    String method: 'get',
+    bool registration: false,
+    bool basic: false,
+    String login: '',
+    String password: '',
+    String body,
+  }) async {
+    if (!registration && !basic && _token == null) throw ('Token is null');
+    if (!registration && basic && (login.isEmpty || password.isEmpty))
+      throw ('Login and password are required with non-bearer authentication');
 
-  Future<Map<String, dynamic>> doRequest(Method method, String endpoint,
-      {Map<String, dynamic> body, Map<String, String> params}) async {
-    // Prepare the request headers.
-    Map<String, String> headers = {
-      HttpHeaders.acceptEncodingHeader: 'application/json',
-      HttpHeaders.contentEncodingHeader: 'application/json',
-    };
-    if (_authToken != '' && _authToken != null) {
-      headers[HttpHeaders.authorizationHeader] = 'Bearer $_authToken';
+    final authorization = basic
+        ? 'Basic ' + base64Encode(utf8.encode('$login:$password'))
+        : 'Bearer $_token';
+    Request request = Request(method, Uri.parse('$url/v$version/$endpoint'));
+    request.headers['Authorization'] = authorization;
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      request.body = body;
     }
 
-    final url = Uri.http(_url, endpoint, params);
-
-    // Make the request.
-    http.Response res;
-    try {
-      switch (method) {
-        case Method.GET:
-          res = await http.get(
-            url,
-            headers: headers,
-          );
-          break;
-        case Method.POST:
-          res = await http.post(
-            url,
-            headers: headers,
-            body: jsonEncode(body),
-          );
-          break;
-        case Method.PUT:
-          res = await http.put(
-            url,
-            headers: headers,
-            body: jsonEncode(body),
-          );
-          break;
-        case Method.DELETE:
-          res = await http.delete(
-            url,
-            headers: headers,
-          );
-          break;
-      }
-    } catch (e) {
-      throw e;
+    if (debug) {
+      print('request: {$request} headers: ${request.headers}');
     }
 
-    if (res.statusCode >= 300) {
-      // TODO: Decode error
-      throw res.body.toString();
+    final response = await client.send(request);
+    final responseBody = await response.stream.bytesToString();
+    if (responseBody == null || responseBody == '') {
+      if (response.statusCode >= 400)
+        throw ('Unexpected status ${response.statusCode}');
+      return null;
     }
 
-    return jsonDecode(res.body);
+    final data = json.decode(responseBody);
+    if (response.statusCode >= 400)
+      throw (data['error'] ?? 'Unexpected status ${response.statusCode}');
+
+    if (debug) {
+      print('response: {$data}');
+    }
+
+    return data;
   }
 
-  Future<DateTime> authenticate(String email, String password,
-      {bool withTimeout = true}) async {
-    final res = await doRequest(Method.GET, 'v1/users/token/$_kid');
-    _authToken = res['token'];
-    final expiresAt = DateTime.fromMillisecondsSinceEpoch(res['expires_at']);
+  Future<DateTime> authenticate(String login, String password,
+      {bool withUser: false}) async {
+    final Map<String, dynamic> data = await _request('users/token/$kid',
+        basic: true, login: login, password: password);
+    _token = data['token'];
 
-    if (withTimeout) {
-      // Setup a timer for automated logout.
-      _t = Timer(expiresAt.difference(DateTime.now()), () {
-        logout();
-      });
-    }
+    // if (withUser) {
+    //   final user = await getUser('me');
+    //   return Session.fromJson(data, user: user);
+    // }
 
-    return expiresAt;
+    //return Session.fromJson(data);
+    return DateTime.fromMillisecondsSinceEpoch(
+        1000 * (data['expires_at'] as int));
   }
 
   void logout() {
-    if (_t != null) _t.cancel();
-    _authToken = null;
+    _token = null;
   }
 
-  bool get isAuthenticated => _authToken != null && _authToken != "";
+  bool get isAuthenticated => _token != null && _token.isNotEmpty;
+
+  // Future<User> registerUser(String email, String password, String passwordConfirm) async {
+  //   print('API CALL to register user');
+  //   final data = await _request(
+  //     'users',
+  //     registration: true,
+  //     method: 'post',
+  //     body: json.encode({
+  //       'email': email,
+  //       'password': password,
+  //       'password_confirm': passwordConfirm,
+  //     }),
+  //   );
+
+  //   return User.fromJson(data);
+  // }
+
+  // Future<User> createUser(String email, String password, String passwordConfirm, List<UserRole> roles) async {
+  //   final data = await _request(
+  //     'users',
+  //     method: 'post',
+  //     body: json.encode({
+  //       'email': email,
+  //       'roles': roles.map((role) => role.toString()).toList(),
+  //       'password': password,
+  //       'password_confirm': passwordConfirm,
+  //     }),
+  //   );
+
+  //   return User.fromJson(data);
+  // }
+
+  // Future<List<User>> fetchUsers() async {
+  //   final List<dynamic> data = await _request('users', method: 'get');
+
+  //   var users = List<User>();
+  //   data.forEach((user) {
+  //     users.add(User.fromJson(user));
+  //   });
+
+  //   return users;
+  // }
+
+  // Future<User> getUser(String q) async {
+  //   final data = await _request('users/$q', method: 'get');
+  //   return User.fromJson(data);
+  // }
+
+  API(
+      {this.url = 'http://localhost:3000',
+      this.version = 1,
+      this.kid = '54bb2165-71e1-41a6-af3e-7da4a0e1e2c1'})
+      : client = Client();
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../mixins/validation.dart';
+import '../providers/auth_provider.dart';
 
 class Login extends StatefulWidget {
   @override
@@ -13,6 +15,7 @@ class _LoginState extends State<Login> with Validation {
 
   @override
   Widget build(BuildContext context) {
+    final _authProvider = Provider.of<AuthProvider>(context, listen: false);
     return Form(
       key: _formKey,
       child: Column(
@@ -32,11 +35,15 @@ class _LoginState extends State<Login> with Validation {
             onPressed: () {
               // Validate returns true if the form is valid, otherwise false.
               if (_formKey.currentState.validate()) {
-                // If the form is valid, display a snackbar. In the real world,
-                // you'd often call a server or save the information in a database.
-
-                Scaffold.of(context)
-                    .showSnackBar(SnackBar(content: Text('Processing Data')));
+                _authProvider
+                    .authenticate(
+                        _emailController.text, _passwordController.text)
+                    .then((value) => Scaffold.of(context).showSnackBar(
+                        SnackBar(content: Text('Login succeeded'))))
+                    .catchError((err) => Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Couldn\'t login: ${err.toString()}'))));
               }
             },
             child: Text('Login'),

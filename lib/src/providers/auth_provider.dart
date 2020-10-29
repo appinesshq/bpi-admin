@@ -11,8 +11,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> authenticate(String email, String password) async {
     try {
       // Authenticate at the backend.
-      final expiresAt =
-          await _api.authenticate(email, password, withTimeout: false);
+      final expiresAt = await _api.authenticate(email, password);
 
       // Set a timer to logout automatically when the session expires.
       _t = Timer(expiresAt.difference(DateTime.now()), () {

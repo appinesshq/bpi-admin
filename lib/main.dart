@@ -12,7 +12,8 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    final _api = API();
+    final _api = API(url: 'http://192.168.0.100:3000');
+    _api.debug = true;
 
     return MaterialApp(
       title: 'Flutter Demo',

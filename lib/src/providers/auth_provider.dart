@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../repositories/api.dart';
 import '../models/session.dart';
+export '../models/session.dart';
 
 class AuthProvider extends ChangeNotifier {
   final API _api;

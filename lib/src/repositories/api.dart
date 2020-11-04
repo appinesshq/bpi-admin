@@ -4,8 +4,7 @@ import 'package:http/http.dart' show Client, Request;
 import '../models/session.dart';
 import '../repositories/repositories.dart';
 
-class API implements AuthRepository {
-  // implements AuthRepository, UserRepository {
+class API implements AuthRepository, UserRepository {
   String url;
   int version;
   String kid;
@@ -96,35 +95,62 @@ class API implements AuthRepository {
   //   return User.fromJson(data);
   // }
 
-  // Future<User> createUser(String email, String password, String passwordConfirm, List<UserRole> roles) async {
-  //   final data = await _request(
-  //     'users',
-  //     method: 'post',
-  //     body: json.encode({
-  //       'email': email,
-  //       'roles': roles.map((role) => role.toString()).toList(),
-  //       'password': password,
-  //       'password_confirm': passwordConfirm,
-  //     }),
-  //   );
+  Future<User> createUser(String email, String password, String passwordConfirm,
+      List<UserRole> roles) async {
+    final data = await _request(
+      'users',
+      method: 'post',
+      body: json.encode({
+        'email': email,
+        'roles': roles.map((role) => role.toString()).toList(),
+        'password': password,
+        'password_confirm': passwordConfirm,
+      }),
+    );
 
-  //   return User.fromJson(data);
-  // }
+    return User.fromJson(data);
+  }
 
-  // Future<List<User>> fetchUsers() async {
-  //   final List<dynamic> data = await _request('users', method: 'get');
+  Future<List<User>> fetchUsers(int page, int rows) async {
+    final List<dynamic> data =
+        await _request('users/$page/$rows', method: 'get');
 
-  //   var users = List<User>();
-  //   data.forEach((user) {
-  //     users.add(User.fromJson(user));
-  //   });
+    var users = List<User>();
+    data.forEach((user) {
+      users.add(User.fromJson(user));
+    });
 
-  //   return users;
-  // }
+    return users;
+  }
 
   Future<User> getUser(String q) async {
     final data = await _request('users/$q', method: 'get');
     return User.fromJson(data);
+  }
+
+  Future<User> updateUser(User user,
+      {String password, String passwordConfirm}) async {
+    // Get the current user data.
+    final u = await getUser(user.id);
+
+    final data = await _request(
+      'users',
+      method: 'put',
+      body: json.encode({
+        'email': u.email != user.email ? user.email : null,
+        'roles': u.roles != user.roles
+            ? user.roles.map((role) => role.toString()).toList()
+            : null,
+        'password': password,
+        'password_confirm': passwordConfirm,
+      }),
+    );
+
+    return User.fromJson(data);
+  }
+
+  Future<void> deleteUser(String id) async {
+    await _request('user/$id', method: 'delete');
   }
 
   API(
